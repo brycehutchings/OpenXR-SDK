@@ -22,12 +22,13 @@
         </Link>
     </ItemDefinitionGroup>
 
-    <!-- Copy the OpenXR loader DLL to the output directory -->
+    <!-- Copy the OpenXR loader DLL to the output directory and include in packaging -->
     <ItemGroup Condition="'$(OpenXRSkipLoaderCopy)'!='true'">
-        <Content
-            Include="$(OpenXRLoaderBinaryRoot)\bin\openxr_loader.dll"
-            Link="%(Filename)%(Extension)"
-            CopyToOutputDirectory="PreserveNewest" />
+        <None Include="$(OpenXRLoaderBinaryRoot)\bin\openxr_loader.dll">
+            <Link>%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <DeploymentContent>true</DeploymentContent>
+        </None>
     </ItemGroup>
 
     <Target Name="EnsurePropsImported" BeforeTargets="PrepareForBuild">
