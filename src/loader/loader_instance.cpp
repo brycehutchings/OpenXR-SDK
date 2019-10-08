@@ -50,7 +50,7 @@ const std::array<XrExtensionProperties, 1>& LoaderInstance::LoaderSpecificExtens
 
 // Factory method
 XrResult LoaderInstance::CreateInstance(std::vector<std::unique_ptr<ApiLayerInterface>>&& api_layer_interfaces,
-                                        const XrInstanceCreateInfo* info, XrInstance* instance) {
+                                        const XrInstanceCreateInfo* info, std::unique_ptr<LoaderInstance>& loader_instance) {
     XrResult last_error = XR_SUCCESS;
     LoaderLogger::LogVerboseMessage("xrCreateInstance", "Entering LoaderInstance::CreateInstance");
 
@@ -59,8 +59,8 @@ XrResult LoaderInstance::CreateInstance(std::vector<std::unique_ptr<ApiLayerInte
     PFN_xrCreateApiLayerInstance topmost_cali_fp = LoaderXrTermCreateApiLayerInstance;
 
     // Create the loader instance
-    std::unique_ptr<LoaderInstance> loader_instance(new LoaderInstance(std::move(api_layer_interfaces)));
-    *instance = reinterpret_cast<XrInstance>(loader_instance.get());
+    std::unique_ptr<LoaderInstance> new_loader_instance(new LoaderInstance(std::move(api_layer_interfaces)));
+    XrInstance instance = reinterpret_cast<XrInstance>(loader_instance.get());
 
     // Only start the xrCreateApiLayerInstance stack if we have layers.
     std::vector<std::unique_ptr<ApiLayerInterface>>& layer_interfaces = loader_instance->LayerInterfaces();
@@ -110,10 +110,10 @@ XrResult LoaderInstance::CreateInstance(std::vector<std::unique_ptr<ApiLayerInte
         api_layer_ci.loaderInstance = reinterpret_cast<void*>(loader_instance.get());
         api_layer_ci.settings_file_location[0] = '\0';
         api_layer_ci.nextInfo = next_info_list.get();
-        last_error = topmost_cali_fp(info, &api_layer_ci, instance);
+        last_error = topmost_cali_fp(info, &api_layer_ci, &instance);
 
     } else {
-        last_error = topmost_ci_fp(info, instance);
+        last_error = topmost_ci_fp(info, &instance);
     }
 
     if (XR_SUCCEEDED(last_error)) {
@@ -159,17 +159,10 @@ XrResult LoaderInstance::CreateInstance(std::vector<std::unique_ptr<ApiLayerInte
     if (XR_SUCCEEDED(last_error)) {
         // Create the top-level dispatch table for the instance.  This will contain the function pointers to the
         // first instantiation of every command, whether that is in a layer, or a runtime.
-        last_error = loader_instance->CreateDispatchTable(*instance);
+        last_error = loader_instance->Initialize(instance);
         if (XR_FAILED(last_error)) {
             LoaderLogger::LogErrorMessage("xrCreateInstance",
                                           "LoaderInstance::CreateInstance failed creating top-level dispatch table");
-        } else {
-            last_error = g_instance_map.Insert(*instance, *loader_instance);
-            if (XR_FAILED(last_error)) {
-                LoaderLogger::LogErrorMessage(
-                    "xrCreateInstance",
-                    "LoaderInstance::CreateInstance failed inserting new instance into map: may be null or not unique");
-            }
         }
     }
 
@@ -178,11 +171,10 @@ XrResult LoaderInstance::CreateInstance(std::vector<std::unique_ptr<ApiLayerInte
         oss << "LoaderInstance::CreateInstance succeeded with ";
         oss << loader_instance->LayerInterfaces().size();
         oss << " layers enabled and runtime interface - created instance = ";
-        oss << HandleToHexString(*instance);
+        oss << HandleToHexString(instance);
         LoaderLogger::LogInfoMessage("xrCreateInstance", oss.str());
-        // Make the unique_ptr no longer delete this.
-        // Don't need to save the return value because we already set *instance
-        (void)loader_instance.release();
+
+        loader_instance = std::move(new_loader_instance);
     }
 
     // Always clear the input lists.  Either we use them or we don't.
@@ -192,11 +184,7 @@ XrResult LoaderInstance::CreateInstance(std::vector<std::unique_ptr<ApiLayerInte
 }
 
 LoaderInstance::LoaderInstance(std::vector<std::unique_ptr<ApiLayerInterface>>&& api_layer_interfaces)
-    : _unique_id(0xDECAFBAD),
-      _api_version(XR_CURRENT_API_VERSION),
-      _api_layer_interfaces(std::move(api_layer_interfaces)),
-      _dispatch_valid(false),
-      _messenger(XR_NULL_HANDLE) {}
+    : _api_version(XR_CURRENT_API_VERSION), _api_layer_interfaces(std::move(api_layer_interfaces)), _messenger(XR_NULL_HANDLE) {}
 
 LoaderInstance::~LoaderInstance() {
     std::ostringstream oss;
@@ -205,24 +193,33 @@ LoaderInstance::~LoaderInstance() {
     LoaderLogger::LogInfoMessage("xrDestroyInstance", oss.str());
 }
 
-XrResult LoaderInstance::CreateDispatchTable(XrInstance instance) {
+XrResult LoaderInstance::Initialize(XrInstance instance) {
     XrResult res = XR_SUCCESS;
+
+    _runtime_instance = instance;
+
     // Create the top-level dispatch table.  First, we want to start with a dispatch table generated
     // using the commands from the runtime, with the exception of commands that we need a terminator
     // for.  The loaderGenInitInstanceDispatchTable utility function handles that automatically for us.
     std::unique_ptr<XrGeneratedDispatchTable> new_instance_dispatch_table(new XrGeneratedDispatchTable());
-    LoaderGenInitInstanceDispatchTable(_runtime_instance, new_instance_dispatch_table);
 
     // Go through all layers, and override the instance pointers with the layer version.  However,
     // go backwards through the layer list so we replace in reverse order so the layers can call their next function
     // appropriately.
+    PFN_xrGetInstanceProcAddr get_instance_proc_addr;
     if (!_api_layer_interfaces.empty()) {
-        (*_api_layer_interfaces.begin())->GenUpdateInstanceDispatchTable(instance, new_instance_dispatch_table);
+        // Use the first API layer's xrGetInstanceProcAddr function. Each layer is responsible for chaining
+        // calls to the next layer or runtime.
+        get_instance_proc_addr = _api_layer_interfaces.front()->GetInstanceProcAddrFuncPointer();
+    } else {
+        // There are no layers so use the runtime's xrGetInstanceProcAddr function.
+        get_instance_proc_addr = RuntimeInterface::GetRuntime().GetInstanceProcAddrFuncPointer();
     }
+
+    LoaderGenInitInstanceDispatchTable(get_instance_proc_addr, _runtime_instance, new_instance_dispatch_table);
 
     // Set the top-level instance dispatch table to the top-most commands now that we've figured them out.
     _dispatch_table = std::move(new_instance_dispatch_table);
-    _dispatch_valid = true;
     return res;
 }
 

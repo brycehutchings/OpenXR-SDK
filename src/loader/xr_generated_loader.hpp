@@ -283,18 +283,5 @@ void LoaderGenInitInstanceDispatchTable(XrInstance runtime_instance,
 } // extern "C"
 #endif
 
-// Unordered maps and mutexes to lookup the instance for a given object type
-extern HandleLoaderMap<XrInstance> g_instance_map;
-extern HandleLoaderMap<XrSession> g_session_map;
-extern HandleLoaderMap<XrSpace> g_space_map;
-extern HandleLoaderMap<XrAction> g_action_map;
-extern HandleLoaderMap<XrSwapchain> g_swapchain_map;
-extern HandleLoaderMap<XrActionSet> g_actionset_map;
-extern HandleLoaderMap<XrDebugUtilsMessengerEXT> g_debugutilsmessengerext_map;
-extern HandleLoaderMap<XrSpatialAnchorMSFT> g_spatialanchormsft_map;
-
-// Function used to clean up any residual map values that point to an instance prior to that
-// instance being deleted.
-void LoaderCleanUpMapsForInstance(LoaderInstance *instance);
-
-
+// Only a single XrInstance is supported.
+extern std::unique_ptr<LoaderInstance> g_loader_instance;

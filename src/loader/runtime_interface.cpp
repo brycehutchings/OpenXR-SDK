@@ -60,7 +60,7 @@ XrResult RuntimeInterface::LoadRuntime(const std::string& openxr_command) {
             LoaderPlatformLibraryHandle runtime_library = LoaderPlatformLibraryOpen(manifest_file->LibraryPath());
             if (nullptr == runtime_library) {
                 if (!any_loaded) {
-                    last_error = XR_ERROR_INSTANCE_LOST;
+                    last_error = XR_ERROR_INITIALIZATION_FAILED;
                 }
                 std::string library_message = LoaderPlatformLibraryOpenError(manifest_file->LibraryPath());
                 std::string warning_message = "RuntimeInterface::LoadRuntime skipping manifest file ";
@@ -177,7 +177,7 @@ XrResult RuntimeInterface::LoadRuntime(const std::string& openxr_command) {
     // We found no valid runtimes, throw the initialization failed message
     if (!any_loaded) {
         LoaderLogger::LogErrorMessage(openxr_command, "RuntimeInterface::LoadRuntimes - failed to find a valid runtime");
-        last_error = XR_ERROR_INSTANCE_LOST;
+        last_error = XR_ERROR_INITIALIZATION_FAILED;
     }
 
     return last_error;
@@ -193,49 +193,19 @@ void RuntimeInterface::UnloadRuntime(const std::string& openxr_command) {
     LoaderLogger::LogInfoMessage(openxr_command, "RuntimeInterface being unloaded.");
 }
 
-XrResult RuntimeInterface::GetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function) {
-    return _single_runtime_interface->_get_instant_proc_addr(instance, name, function);
-}
-
-const XrGeneratedDispatchTable* RuntimeInterface::GetDispatchTable(XrInstance instance) {
-    XrGeneratedDispatchTable* table = nullptr;
-    std::lock_guard<std::mutex> mlock(_single_runtime_interface->_dispatch_table_mutex);
-    auto it = _single_runtime_interface->_dispatch_table_map.find(instance);
-    if (it != _single_runtime_interface->_dispatch_table_map.end()) {
-        table = it->second.get();
-    }
-    return table;
-}
-
-const XrGeneratedDispatchTable* RuntimeInterface::GetDebugUtilsMessengerDispatchTable(XrDebugUtilsMessengerEXT messenger) {
-    XrInstance runtime_instance = XR_NULL_HANDLE;
-    {
-        std::lock_guard<std::mutex> mlock(_single_runtime_interface->_messenger_to_instance_mutex);
-        auto it = _single_runtime_interface->_messenger_to_instance_map.find(messenger);
-        if (it != _single_runtime_interface->_messenger_to_instance_map.end()) {
-            runtime_instance = it->second;
-        }
-    }
-    return GetDispatchTable(runtime_instance);
-}
-
 RuntimeInterface::RuntimeInterface(LoaderPlatformLibraryHandle runtime_library, PFN_xrGetInstanceProcAddr get_instant_proc_addr)
-    : _runtime_library(runtime_library), _get_instant_proc_addr(get_instant_proc_addr) {}
+    : _runtime_library(runtime_library), _get_instance_proc_addr(get_instant_proc_addr) {}
 
 RuntimeInterface::~RuntimeInterface() {
     std::string info_message = "RuntimeInterface being destroyed.";
     LoaderLogger::LogInfoMessage("", info_message);
-    {
-        std::lock_guard<std::mutex> mlock(_dispatch_table_mutex);
-        _dispatch_table_map.clear();
-    }
     LoaderPlatformLibraryClose(_runtime_library);
 }
 
 void RuntimeInterface::GetInstanceExtensionProperties(std::vector<XrExtensionProperties>& extension_properties) {
     std::vector<XrExtensionProperties> runtime_extension_properties;
     PFN_xrEnumerateInstanceExtensionProperties rt_xrEnumerateInstanceExtensionProperties;
-    _get_instant_proc_addr(XR_NULL_HANDLE, "xrEnumerateInstanceExtensionProperties",
+    _get_instance_proc_addr(XR_NULL_HANDLE, "xrEnumerateInstanceExtensionProperties",
                            reinterpret_cast<PFN_xrVoidFunction*>(&rt_xrEnumerateInstanceExtensionProperties));
     uint32_t count = 0;
     uint32_t count_output = 0;
@@ -267,62 +237,6 @@ void RuntimeInterface::GetInstanceExtensionProperties(std::vector<XrExtensionPro
         if (!found) {
             extension_properties.push_back(runtime_extension_properties[ext]);
         }
-    }
-}
-
-XrResult RuntimeInterface::CreateInstance(const XrInstanceCreateInfo* info, XrInstance* instance) {
-    XrResult res = XR_SUCCESS;
-    bool create_succeeded = false;
-    PFN_xrCreateInstance rt_xrCreateInstance;
-    _get_instant_proc_addr(XR_NULL_HANDLE, "xrCreateInstance", reinterpret_cast<PFN_xrVoidFunction*>(&rt_xrCreateInstance));
-    res = rt_xrCreateInstance(info, instance);
-    if (XR_SUCCESS == res) {
-        create_succeeded = true;
-        std::unique_ptr<XrGeneratedDispatchTable> dispatch_table(new XrGeneratedDispatchTable());
-        GeneratedXrPopulateDispatchTable(dispatch_table.get(), *instance, _get_instant_proc_addr);
-        std::lock_guard<std::mutex> mlock(_dispatch_table_mutex);
-        _dispatch_table_map[*instance] = std::move(dispatch_table);
-    }
-
-    // If the failure occurred during the populate, clean up the instance we had picked up from the runtime
-    if (XR_SUCCESS != res && create_succeeded) {
-        PFN_xrDestroyInstance rt_xrDestroyInstance;
-        _get_instant_proc_addr(*instance, "xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction*>(&rt_xrDestroyInstance));
-        rt_xrDestroyInstance(*instance);
-        *instance = XR_NULL_HANDLE;
-    }
-
-    return res;
-}
-
-XrResult RuntimeInterface::DestroyInstance(XrInstance instance) {
-    if (XR_NULL_HANDLE != instance) {
-        // Destroy the dispatch table for this instance first
-        {
-            std::lock_guard<std::mutex> mlock(_dispatch_table_mutex);
-            auto map_iter = _dispatch_table_map.find(instance);
-            if (map_iter != _dispatch_table_map.end()) {
-                _dispatch_table_map.erase(map_iter);
-            }
-        }
-        // Now delete the instance
-        PFN_xrDestroyInstance rt_xrDestroyInstance;
-        _get_instant_proc_addr(instance, "xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction*>(&rt_xrDestroyInstance));
-        rt_xrDestroyInstance(instance);
-    }
-    return XR_SUCCESS;
-}
-
-bool RuntimeInterface::TrackDebugMessenger(XrInstance instance, XrDebugUtilsMessengerEXT messenger) {
-    std::lock_guard<std::mutex> mlock(_messenger_to_instance_mutex);
-    _messenger_to_instance_map[messenger] = instance;
-    return true;
-}
-
-void RuntimeInterface::ForgetDebugMessenger(XrDebugUtilsMessengerEXT messenger) {
-    if (XR_NULL_HANDLE != messenger) {
-        std::lock_guard<std::mutex> mlock(_messenger_to_instance_mutex);
-        _messenger_to_instance_map.erase(messenger);
     }
 }
 

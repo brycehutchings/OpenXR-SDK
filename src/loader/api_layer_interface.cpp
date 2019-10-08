@@ -376,7 +376,7 @@ ApiLayerInterface::ApiLayerInterface(const std::string& layer_name, LoaderPlatfo
                                      PFN_xrCreateApiLayerInstance create_api_layer_instance)
     : _layer_name(layer_name),
       _layer_library(layer_library),
-      _get_instant_proc_addr(get_instant_proc_addr),
+      _get_instance_proc_addr(get_instant_proc_addr),
       _create_api_layer_instance(create_api_layer_instance),
       _supported_extensions(supported_extensions) {}
 

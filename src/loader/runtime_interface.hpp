@@ -31,6 +31,7 @@
 
 struct XrGeneratedDispatchTable;
 
+// Manages things related to the lifetime of the runtime module. Nothing instance-specific.
 class RuntimeInterface {
    public:
     virtual ~RuntimeInterface();
@@ -39,16 +40,15 @@ class RuntimeInterface {
     static XrResult LoadRuntime(const std::string& openxr_command);
     static void UnloadRuntime(const std::string& openxr_command);
     static RuntimeInterface& GetRuntime() { return *(_single_runtime_interface.get()); }
-    static XrResult GetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function);
-    static const XrGeneratedDispatchTable* GetDispatchTable(XrInstance instance);
-    static const XrGeneratedDispatchTable* GetDebugUtilsMessengerDispatchTable(XrDebugUtilsMessengerEXT messenger);
+
+    // Runtime get instance proc address function, without any API layers chained in.
+    //static XrResult GetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function);
+    //static const XrGeneratedDispatchTable* GetDispatchTable(XrInstance instance);
+    //static const XrGeneratedDispatchTable* GetDebugUtilsMessengerDispatchTable(XrDebugUtilsMessengerEXT messenger);
+    PFN_xrGetInstanceProcAddr GetInstanceProcAddrFuncPointer() { return _get_instance_proc_addr; }
 
     void GetInstanceExtensionProperties(std::vector<XrExtensionProperties>& extension_properties);
     bool SupportsExtension(const std::string& extension_name);
-    XrResult CreateInstance(const XrInstanceCreateInfo* info, XrInstance* instance);
-    XrResult DestroyInstance(XrInstance instance);
-    bool TrackDebugMessenger(XrInstance instance, XrDebugUtilsMessengerEXT messenger);
-    void ForgetDebugMessenger(XrDebugUtilsMessengerEXT messenger);
 
     // No default construction
     RuntimeInterface() = delete;
@@ -64,10 +64,6 @@ class RuntimeInterface {
     static std::unique_ptr<RuntimeInterface> _single_runtime_interface;
     static uint32_t _single_runtime_count;
     LoaderPlatformLibraryHandle _runtime_library;
-    PFN_xrGetInstanceProcAddr _get_instant_proc_addr;
-    std::unordered_map<XrInstance, std::unique_ptr<XrGeneratedDispatchTable>> _dispatch_table_map;
-    std::mutex _dispatch_table_mutex;
-    std::unordered_map<XrDebugUtilsMessengerEXT, XrInstance> _messenger_to_instance_map;
-    std::mutex _messenger_to_instance_mutex;
+    PFN_xrGetInstanceProcAddr _get_instance_proc_addr;
     std::vector<std::string> _supported_extensions;
 };

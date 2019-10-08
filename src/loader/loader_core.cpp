@@ -42,14 +42,13 @@
 #include <utility>
 #include <vector>
 
-// Flag to cause the one time to init to only occur one time.
-std::once_flag g_one_time_init_flag;
-
 // Global lock to prevent reading JSON manifest files at the same time.
 static std::mutex g_loader_json_mutex;
 
 // Global lock to prevent simultaneous instance creation/destruction
 static std::mutex g_loader_instance_mutex;
+
+std::unique_ptr<LoaderInstance> g_loader_instance;
 
 // Utility template function meant to validate if a fixed size string contains
 // a null-terminator.
@@ -254,13 +253,10 @@ LOADER_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrCreateInstance(const XrInstanceCr
     std::unique_lock<std::mutex> instance_lock(g_loader_instance_mutex);
 
     // Create the loader instance (only send down first runtime interface)
-    XrInstance created_instance = XR_NULL_HANDLE;
-    result = LoaderInstance::CreateInstance(std::move(api_layer_interfaces), info, &created_instance);
+    result = LoaderInstance::CreateInstance(std::move(api_layer_interfaces), info, g_loader_instance);
 
     if (XR_SUCCEEDED(result)) {
-        *instance = created_instance;
-
-        LoaderInstance *loader_instance = g_instance_map.Get(created_instance);
+        *instance = g_loader_instance->Instance();
 
         // Create a debug utils messenger if the create structure is in the "next" chain
         const auto *next_header = reinterpret_cast<const XrBaseInStructure *>(info->next);
@@ -274,7 +270,7 @@ LOADER_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrCreateInstance(const XrInstanceCr
                 if (XR_SUCCESS != result) {
                     return XR_ERROR_VALIDATION_FAILURE;
                 }
-                loader_instance->SetDefaultDebugUtilsMessenger(messenger);
+                g_loader_instance->SetDefaultDebugUtilsMessenger(messenger);
                 break;
             }
             next_header = reinterpret_cast<const XrBaseInStructure *>(next_header->next);
@@ -293,17 +289,15 @@ LOADER_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrDestroyInstance(XrInstance instan
         return XR_ERROR_HANDLE_INVALID;
     }
 
-    LoaderInstance *const loader_instance = g_instance_map.Get(instance);
-    if (loader_instance == nullptr) {
+    const XrGeneratedDispatchTable *dispatch_table = g_loader_instance->DispatchTable();
+    if (dispatch_table == nullptr) {
         LoaderLogger::LogValidationErrorMessage("VUID-xrDestroyInstance-instance-parameter", "xrDestroyInstance",
                                                 "invalid instance");
         return XR_ERROR_HANDLE_INVALID;
     }
 
-    const std::unique_ptr<XrGeneratedDispatchTable> &dispatch_table = loader_instance->DispatchTable();
-
     // If we allocated a default debug utils messenger, free it
-    XrDebugUtilsMessengerEXT messenger = loader_instance->DefaultDebugUtilsMessenger();
+    XrDebugUtilsMessengerEXT messenger = g_loader_instance->DefaultDebugUtilsMessenger();
     if (messenger != XR_NULL_HANDLE) {
         xrDestroyDebugUtilsMessengerEXT(messenger);
     }
@@ -313,12 +307,9 @@ LOADER_EXPORT XRAPI_ATTR XrResult XRAPI_CALL xrDestroyInstance(XrInstance instan
         LoaderLogger::LogErrorMessage("xrDestroyInstance", "Unknown error occurred calling down chain");
     }
 
-    // Cleanup any map entries that may still be using this instance
-    LoaderCleanUpMapsForInstance(loader_instance);
-
     // Lock the instance create/destroy mutex
     std::unique_lock<std::mutex> loader_instance_lock(g_loader_instance_mutex);
-    delete loader_instance;
+    g_loader_instance.reset();
     LoaderLogger::LogVerboseMessage("xrDestroyInstance", "Completed loader trampoline");
 
     // Finally, unload the runtime if necessary
@@ -382,16 +373,20 @@ static XrResult ValidateInstanceCreateInfo(LoaderInstance *loader_instance, cons
 
 XRAPI_ATTR XrResult XRAPI_CALL LoaderXrTermCreateInstance(const XrInstanceCreateInfo *info, XrInstance *instance) XRLOADER_ABI_TRY {
     LoaderLogger::LogVerboseMessage("xrCreateInstance", "Entering loader terminator");
-    LoaderInstance *loader_instance = reinterpret_cast<LoaderInstance *>(*instance);
-    XrResult result = ValidateInstanceCreateInfo(loader_instance, info);
-    if (XR_SUCCESS != result) {
-        LoaderLogger::LogValidationErrorMessage("VUID-xrCreateInstance-info-parameter", "xrCreateInstance",
-                                                "something wrong with XrInstanceCreateInfo contents");
-        return result;
+
+    PFN_xrCreateInstance createInstance;
+    XrResult result = RuntimeInterface::GetRuntime().GetInstanceProcAddrFuncPointer()(XR_NULL_HANDLE, "xrCreateInstance",
+                                                                                      (PFN_xrVoidFunction *)&createInstance);
+    if (XR_SUCCEEDED(result)) {
+        result = createInstance(info, instance);
     }
-    result = RuntimeInterface::GetRuntime().CreateInstance(info, instance);
-    loader_instance->SetRuntimeInstance(*instance);
-    LoaderLogger::LogVerboseMessage("xrCreateInstance", "Completed loader terminator");
+
+    if (XR_FAILED(result)) {
+        LoaderLogger::LogErrorMessage("xrCreateInstance", "xrCreateInstance terminator failed");
+    } else {
+        LoaderLogger::LogVerboseMessage("xrCreateInstance", "Completed loader terminator");
+    }
+
     return result;
 }
 XRLOADER_ABI_CATCH_FALLBACK
@@ -405,8 +400,20 @@ XRAPI_ATTR XrResult XRAPI_CALL LoaderXrTermCreateApiLayerInstance(const XrInstan
 XRAPI_ATTR XrResult XRAPI_CALL LoaderXrTermDestroyInstance(XrInstance instance) XRLOADER_ABI_TRY {
     XrResult result;
     LoaderLogger::LogVerboseMessage("xrDestroyInstance", "Entering loader terminator");
-    result = RuntimeInterface::GetRuntime().DestroyInstance(instance);
-    LoaderLogger::LogVerboseMessage("xrDestroyInstance", "Completed loader terminator");
+
+    PFN_xrDestroyInstance destroyInstance;
+    result = g_loader_instance->GetInstanceProcAddrFuncPointer()(XR_NULL_HANDLE, "xrDestroyInstance",
+                                                                 (PFN_xrVoidFunction *)&destroyInstance);
+    if (XR_SUCCEEDED(result)) {
+        result = destroyInstance(instance);
+    }
+
+    if (XR_FAILED(result)) {
+        LoaderLogger::LogErrorMessage("xrDestroyInstance", "xrCreateInstance terminator failed");
+    } else {
+        LoaderLogger::LogVerboseMessage("xrDestroyInstance", "Completed loader terminator");
+    }
+
     return result;
 }
 XRLOADER_ABI_CATCH_FALLBACK
@@ -418,7 +425,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateDebugUtilsMessengerEXT(XrInstance instanc
                                                               XrDebugUtilsMessengerEXT *messenger) XRLOADER_ABI_TRY {
     LoaderLogger::LogVerboseMessage("xrCreateDebugUtilsMessengerEXT", "Entering loader trampoline");
 
-    LoaderInstance *loader_instance = g_instance_map.Get(instance);
+    LoaderInstance* loader_instance = g_loader_instance.get();
     if (loader_instance == nullptr) {
         LoaderLogger::LogValidationErrorMessage("VUID-xrCreateDebugUtilsMessengerEXT-instance-parameter",
                                                 "xrCreateDebugUtilsMessengerEXT", "invalid instance");
