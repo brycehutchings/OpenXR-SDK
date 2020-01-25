@@ -2,7 +2,7 @@
 //     See utility_source_generator.py for modifications
 // ************************************************************
 
-// Copyright (c) 2017-2019 The Khronos Group Inc.
+// Copyright (c) 2017-2020 The Khronos Group Inc.
 // Copyright (c) 2017-2019 Valve Corporation
 // Copyright (c) 2017-2019 LunarG, Inc.
 //
@@ -172,6 +172,13 @@ struct XrGeneratedDispatchTable {
     PFN_xrCreateSpatialAnchorMSFT CreateSpatialAnchorMSFT;
     PFN_xrCreateSpatialAnchorSpaceMSFT CreateSpatialAnchorSpaceMSFT;
     PFN_xrDestroySpatialAnchorMSFT DestroySpatialAnchorMSFT;
+
+    // ---- XR_EXT_conformance_automation extension commands
+    PFN_xrSetInputDeviceActiveEXT SetInputDeviceActiveEXT;
+    PFN_xrSetInputDeviceStateBoolEXT SetInputDeviceStateBoolEXT;
+    PFN_xrSetInputDeviceStateFloatEXT SetInputDeviceStateFloatEXT;
+    PFN_xrSetInputDeviceStateVector2fEXT SetInputDeviceStateVector2fEXT;
+    PFN_xrSetInputDeviceLocationEXT SetInputDeviceLocationEXT;
 };
 
 

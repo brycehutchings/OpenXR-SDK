@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Khronos Group Inc.
+// Copyright (c) 2017-2020 The Khronos Group Inc.
 // Copyright (c) 2017-2019 Valve Corporation
 // Copyright (c) 2017-2019 LunarG, Inc.
 //
@@ -245,7 +245,6 @@ XrResult ApiLayerInterface::LoadApiLayers(const std::string& openxr_command, uin
                 if (enabled_api_layers[layer] == manifest_file->LayerName()) {
                     layer_found[layer] = true;
                     enabled = true;
-                    break;
                 }
             }
         }
@@ -374,11 +373,11 @@ XrResult ApiLayerInterface::LoadApiLayers(const std::string& openxr_command, uin
 
 ApiLayerInterface::ApiLayerInterface(const std::string& layer_name, LoaderPlatformLibraryHandle layer_library,
                                      std::vector<std::string>& supported_extensions,
-                                     PFN_xrGetInstanceProcAddr get_instant_proc_addr,
+                                     PFN_xrGetInstanceProcAddr get_instance_proc_addr,
                                      PFN_xrCreateApiLayerInstance create_api_layer_instance)
     : _layer_name(layer_name),
       _layer_library(layer_library),
-      _get_instance_proc_addr(get_instant_proc_addr),
+      _get_instance_proc_addr(get_instance_proc_addr),
       _create_api_layer_instance(create_api_layer_instance),
       _supported_extensions(supported_extensions) {}
 

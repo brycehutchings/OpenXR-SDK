@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Khronos Group Inc.
+// Copyright (c) 2017-2020 The Khronos Group Inc.
 // Copyright (c) 2017-2019 Valve Corporation
 // Copyright (c) 2017-2019 LunarG, Inc.
 //
@@ -43,7 +43,7 @@ class ApiLayerInterface {
                                                    std::vector<XrExtensionProperties>& extension_properties);
 
     ApiLayerInterface(const std::string& layer_name, LoaderPlatformLibraryHandle layer_library,
-                      std::vector<std::string>& supported_extensions, PFN_xrGetInstanceProcAddr get_instant_proc_addr,
+                      std::vector<std::string>& supported_extensions, PFN_xrGetInstanceProcAddr get_instance_proc_addr,
                       PFN_xrCreateApiLayerInstance create_api_layer_instance);
     virtual ~ApiLayerInterface();
 
@@ -53,7 +53,6 @@ class ApiLayerInterface {
     std::string LayerName() { return _layer_name; }
 
     // Generated methods
-    void GenUpdateInstanceDispatchTable(XrInstance instance, std::unique_ptr<XrGeneratedDispatchTable>& table);
     bool SupportsExtension(const std::string& extension_name) const;
 
    private:

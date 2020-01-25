@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Khronos Group Inc.
+// Copyright (c) 2017-2020 The Khronos Group Inc.
 // Copyright (c) 2017-2019 Valve Corporation
 // Copyright (c) 2017-2019 LunarG, Inc.
 //
@@ -40,6 +40,8 @@ class RuntimeInterface {
     static void UnloadRuntime(const std::string& openxr_command);
     static RuntimeInterface& GetRuntime() { return *(_single_runtime_interface.get()); }
     static XrResult GetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function);
+
+    // Get the direct dispatch table to this runtime, without API layers or loader terminators.
     static const XrGeneratedDispatchTable* GetDispatchTable(XrInstance instance);
     static const XrGeneratedDispatchTable* GetDebugUtilsMessengerDispatchTable(XrDebugUtilsMessengerEXT messenger);
 
@@ -58,7 +60,7 @@ class RuntimeInterface {
     RuntimeInterface& operator=(const RuntimeInterface&) = delete;
 
    private:
-    RuntimeInterface(LoaderPlatformLibraryHandle runtime_library, PFN_xrGetInstanceProcAddr get_instant_proc_addr);
+    RuntimeInterface(LoaderPlatformLibraryHandle runtime_library, PFN_xrGetInstanceProcAddr get_instance_proc_addr);
     void SetSupportedExtensions(std::vector<std::string>& supported_extensions);
 
     static std::unique_ptr<RuntimeInterface> _single_runtime_interface;
