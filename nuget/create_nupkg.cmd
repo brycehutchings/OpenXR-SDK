@@ -52,6 +52,12 @@ if errorlevel 1 exit /b 1
 call :build_loader Win32 -G "%GENERATOR%" -A Win32
 if errorlevel 1 exit /b 1
 
+call :build_loader arm -G "%GENERATOR%" -A ARM64
+if errorlevel 1 exit /b 1
+
+call :build_loader arm64 -G "%GENERATOR%" -A ARM
+if errorlevel 1 exit /b 1
+
 cd %~dp0
 nuget pack "%PackageRoot%" -Symbols -SymbolPackageFormat snupkg -Version "%OpenXRVersion%"
 if errorlevel 1 exit /b 1
