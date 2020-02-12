@@ -52,10 +52,10 @@ if errorlevel 1 exit /b 1
 call :build_loader Win32 -G "%GENERATOR%" -A Win32
 if errorlevel 1 exit /b 1
 
-call :build_loader arm -G "%GENERATOR%" -A ARM64
+call :build_loader arm64 -G "%GENERATOR%" -A ARM64
 if errorlevel 1 exit /b 1
 
-call :build_loader arm64 -G "%GENERATOR%" -A ARM
+call :build_loader arm -G "%GENERATOR%" -A ARM
 if errorlevel 1 exit /b 1
 
 cd %~dp0
