@@ -8,7 +8,7 @@ VS_VERSIONS = {
     # 2017: 'Visual Studio 15 2017',
 }
 
-PLATFORMS = (Win32, x64, ARM, ARM64)
+PLATFORMS = ('Win32', 'x64', 'ARM', 'ARM64')
 
 TRUE_FALSE = (True, False)
 
