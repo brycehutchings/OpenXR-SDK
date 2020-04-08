@@ -15,7 +15,7 @@ TRUE_FALSE = (True, False)
 
 def make_win_artifact_name(vsver, dynamic, platform, uwp):
     return 'loader_{}{}_msvs{}_{}'.format(
-        platform,
+        platform.lower(),
         '_uwp' if uwp else '',
         vsver,
         'dynamic' if dynamic else 'static'
