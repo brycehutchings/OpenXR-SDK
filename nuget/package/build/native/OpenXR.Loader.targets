@@ -24,7 +24,8 @@
 
     <!-- Copy the OpenXR loader DLL to the output directory and include in packaging -->
     <ItemGroup Condition="'$(OpenXRSkipLoaderCopy)'!='true'">
-        <None Include="$(OpenXRLoaderBinaryRoot)\bin\openxr_loader.dll">
+        <None Include="$(OpenXRLoaderBinaryRoot)\bin\openxr_loader.dll"
+              Condition="'$(ConfigurationType)'=='Application' Or '$(ConfigurationType)'=='DynamicLibrary'">
             <Link>%(Filename)%(Extension)</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <DeploymentContent>true</DeploymentContent>
