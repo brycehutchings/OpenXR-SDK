@@ -13,7 +13,6 @@ TRUE_FALSE = (True, False)
 def make_win_artifact_name(platform, uwp):
     return 'loader_{}{}'.format(
         platform.lower(),
-        vsver,
         '_uwp' if uwp else '',
     )
 
