@@ -5,7 +5,7 @@ from itertools import product
 from pathlib import Path
 import sys
 
-from shared import PLATFORMS, TRUE_FALSE, VS_VERSIONS, make_win_artifact_name
+from shared import PLATFORMS, TRUE_FALSE, VS_VERSION, make_win_artifact_name
 
 CWD = Path.cwd()
 
@@ -25,12 +25,11 @@ if __name__ == "__main__":
 
     include_copied = False
 
-    for vsver, platform, uwp in product(VS_VERSIONS.keys(), PLATFORMS, TRUE_FALSE):
-        base = outbase / 'msvs{}_{}{}'.format(vsver,
-                                                platform,
-                                                '_uwp' if uwp else '')
+    for platform, uwp in product(PLATFORMS, TRUE_FALSE):
+        base = outbase / '{}{}'.format(platform,
+                                              '_uwp' if uwp else '')
         base.mkdir(parents=True, exist_ok=True)
-        name = make_win_artifact_name(vsver, platform, uwp)
+        name = make_win_artifact_name(platform, uwp)
 
         artifact = workspace / name
 

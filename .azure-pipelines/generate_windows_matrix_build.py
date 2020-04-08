@@ -3,16 +3,16 @@
 
 from itertools import product
 
-from shared import (PLATFORMS, TRUE_FALSE, VS_VERSIONS, make_win_artifact_name,
+from shared import (PLATFORMS, TRUE_FALSE, VS_VERSION, make_win_artifact_name,
                     output_json)
 
 if __name__ == "__main__":
 
     configs = {}
-    for vsver, platform, debug, uwp in product(VS_VERSIONS.keys(), PLATFORMS, (False,), TRUE_FALSE):
-        label = [str(vsver)]
+    for  platform, debug, uwp in product(PLATFORMS, (False,), TRUE_FALSE):
+        label = [platform]
         config = []
-        generator = VS_VERSIONS[vsver]
+        generator = VS_VERSION
         config.append('-A ' + platform)
         label.append(platform)
         config.append('-DDYNAMIC_LOADER=ON')
@@ -29,6 +29,6 @@ if __name__ == "__main__":
         }
         if not debug:
             configs[name]['artifactName'] = make_win_artifact_name(
-                vsver, platform, uwp)
+                platform, uwp)
 
     output_json(configs)

@@ -3,21 +3,18 @@
 import json
 import sys
 
-VS_VERSIONS = {
-    2019: 'Visual Studio 16 2019',
-    # 2017: 'Visual Studio 15 2017',
-}
+VS_VERSION = 'Visual Studio 16 2019'
 
 PLATFORMS = ('Win32', 'x64', 'ARM', 'ARM64')
 
 TRUE_FALSE = (True, False)
 
 
-def make_win_artifact_name(vsver, platform, uwp):
-    return 'loader_{}{}_msvs{}_{}'.format(
+def make_win_artifact_name(platform, uwp):
+    return 'loader_{}{}'.format(
         platform.lower(),
+        vsver,
         '_uwp' if uwp else '',
-        vsver
     )
 
 
