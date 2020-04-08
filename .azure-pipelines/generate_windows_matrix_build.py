@@ -24,7 +24,7 @@ if __name__ == "__main__":
         if debug:
             label.append('debug')
         if uwp:
-            label.append('_uwp')
+            label.append('uwp')
             config.append('-DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0')
         name = '_'.join(label)
         configs[name] = {
