@@ -14,12 +14,11 @@ if __name__ == "__main__":
         config = []
         generator = VS_VERSION
         config.append('-A ' + platform)
-        label.append(platform)
         config.append('-DDYNAMIC_LOADER=ON')
         if debug:
             label.append('debug')
         if uwp:
-            label.append('uwp')
+            label.append('UWP')
             config.append('-DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0')
         name = '_'.join(label)
         configs[name] = {
