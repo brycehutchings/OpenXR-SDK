@@ -25,17 +25,16 @@ if __name__ == "__main__":
 
     include_copied = False
 
-    for vsver, platform, dynamic, uwp in product(VS_VERSIONS.keys(), PLATFORMS, TRUE_FALSE, TRUE_FALSE):
-        base = outbase / 'msvs{}_{}_{}{}'.format(vsver,
+    for vsver, platform, uwp in product(VS_VERSIONS.keys(), PLATFORMS, TRUE_FALSE):
+        base = outbase / 'msvs{}_{}{}'.format(vsver,
                                                 platform,
-                                                'dynamic' if dynamic else 'static',
                                                 '_uwp' if uwp else '')
         base.mkdir(parents=True, exist_ok=True)
-        name = make_win_artifact_name(vsver, dynamic, platform, uwp)
+        name = make_win_artifact_name(vsver, platform, uwp)
 
         artifact = workspace / name
 
-        if !include_copied:
+        if not include_copied:
             # Move over one set of includes to the base
             move(artifact / 'include', outbase / 'include')
             include_copied = True            
@@ -43,6 +42,5 @@ if __name__ == "__main__":
         # lib files
         move(artifact / 'lib', base / 'lib')
 
-        if dynamic:
-            # dll files
-            move(artifact / 'bin', base / 'bin')
+        # dll files
+        move(artifact / 'bin', base / 'bin')

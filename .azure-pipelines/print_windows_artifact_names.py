@@ -7,5 +7,5 @@ from shared import PLATFORMS, TRUE_FALSE, VS_VERSIONS, make_win_artifact_name
 
 if __name__ == "__main__":
 
-    for vsver, platform, dynamic, uwp in product(VS_VERSIONS.keys(), PLATFORMS, TRUE_FALSE, TRUE_FALSE):
-        print(make_win_artifact_name(vsver, dynamic, platform, uwp))
+    for vsver, platform, uwp in product(VS_VERSIONS.keys(), PLATFORMS, TRUE_FALSE):
+        print(make_win_artifact_name(vsver, platform, uwp))

@@ -9,18 +9,13 @@ from shared import (PLATFORMS, TRUE_FALSE, VS_VERSIONS, make_win_artifact_name,
 if __name__ == "__main__":
 
     configs = {}
-    for vsver, platform, debug, dynamic, uwp in product(VS_VERSIONS.keys(), PLATFORMS, (False,), TRUE_FALSE, TRUE_FALSE):
+    for vsver, platform, debug, uwp in product(VS_VERSIONS.keys(), PLATFORMS, (False,), TRUE_FALSE):
         label = [str(vsver)]
         config = []
         generator = VS_VERSIONS[vsver]
         config.append('-A ' + platform)
         label.append(platform)
-        if dynamic:
-            label.append('dynamic')
-            config.append('-DDYNAMIC_LOADER=ON')
-        else:
-            label.append('static')
-            config.append('-DDYNAMIC_LOADER=OFF')
+        config.append('-DDYNAMIC_LOADER=ON')
         if debug:
             label.append('debug')
         if uwp:
@@ -30,11 +25,10 @@ if __name__ == "__main__":
         configs[name] = {
             'generator': generator,
             'buildType': 'Debug' if debug else 'RelWithDebInfo',
-            'cmakeArgs': ' '.join(config),
-            'dynamic': dynamic
+            'cmakeArgs': ' '.join(config)
         }
         if not debug:
             configs[name]['artifactName'] = make_win_artifact_name(
-                vsver, dynamic, platform, uwp)
+                vsver, platform, uwp)
 
     output_json(configs)

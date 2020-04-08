@@ -13,12 +13,11 @@ PLATFORMS = ('Win32', 'x64', 'ARM', 'ARM64')
 TRUE_FALSE = (True, False)
 
 
-def make_win_artifact_name(vsver, dynamic, platform, uwp):
+def make_win_artifact_name(vsver, platform, uwp):
     return 'loader_{}{}_msvs{}_{}'.format(
         platform.lower(),
         '_uwp' if uwp else '',
-        vsver,
-        'dynamic' if dynamic else 'static'
+        vsver
     )
 
 
