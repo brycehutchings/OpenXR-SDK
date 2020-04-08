@@ -3,7 +3,7 @@
 
 from itertools import product
 
-from shared import BITS, TRUE_FALSE, VS_VERSIONS, make_win_artifact_name
+from shared import PLATFORMS, TRUE_FALSE, VS_VERSIONS, make_win_artifact_name
 
 if __name__ == "__main__":
 
