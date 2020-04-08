@@ -8,14 +8,15 @@ VS_VERSIONS = {
     # 2017: 'Visual Studio 15 2017',
 }
 
-BITS = (32, 64)
+PLATFORMS = (Win32, x64, ARM, ARM64)
 
 TRUE_FALSE = (True, False)
 
 
-def make_win_artifact_name(vsver, dynamic, bits):
-    return 'loader_win{}_msvs{}_{}'.format(
-        bits,
+def make_win_artifact_name(vsver, dynamic, platform, uwp):
+    return 'loader_{}{}_msvs{}_{}'.format(
+        platform,
+        '_uwp' if uwp else ''
         vsver,
         'dynamic' if dynamic else 'static'
     )
